@@ -1,2 +1,2 @@
 # document
-This is my document repository priavte
+This is my document repository private
