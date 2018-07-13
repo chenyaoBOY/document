@@ -88,15 +88,15 @@
 		|-- 配置的查找顺序:方法级别优先，接口级别次之，全局配置再次之。消费者配置优先与提供者
 		
 		|-- dubbo 自动加载classpath下面的dubbo.properties文件，可以通过jvm启动参数：-Ddubbo.properties.file=xxx.properties更改缺省配置
-		|-- dubbo.registry.address=10.20.153.10:9090 等价于<dubbo:registry address="10.20.153.10:9090" /> 公用配置可以通过properties文件配置
-		|-- 加载顺序：jvm参数>dubbo.xml>dubbo.properties
+		|-- properties 配置文件中 dubbo.registry.address=10.20.153.10:9090 等价于<dubbo:registry address="10.20.153.10:9090" /> 公用配置可以通过properties文件配置
+		|-- 配置加载优先级：jvm参数>dubbo.xml>dubbo.properties
 		
-		|-- dubbo启动默认检查依赖是否可用，不可以抛异常，阻止spring初始化，以便上线更早发现问题,默认check=true
+		|-- dubbo启动默认检查依赖是否可用，不可用抛异常，阻止spring初始化，以便上线更早发现问题,默认check=true
 		|-- reference引用的接口默认是延迟初始化的，只有被使用的时候才初始化，init=true 可以立即初始化
 		|-- 集群调用失败时，dubbo默认容错方案是 failover重试  重试次数配置：retries=2 仅failover模式生效 集群模式配置：cluster='failfast'
 
 		|-- 负载均衡:默认为random随机调用 loadbanlance="roundrobin"  负载均衡算法：随机，轮询，活跃数，一致性hash
-
+		
 
 		provider:
 			|-- application：name属性,提供方的服务名称定义，用于计算依赖关系
@@ -123,9 +123,58 @@
 				|-- register增加集群，客户端可自动发现新的register
 				|-- provider全部宕机，consumer无法使用，无限重连
 				|-- provider无状态，可建立集群，register推送给consumer
-
 		
+		点对点直连：只测试指定服务，以服务接口为单位，忽略注册中心的提供者列表
+			|-- consumer 无需再发现服务，直接在接口中指定url路径 
+			    <dubbo:reference id="demoService" check="false" interface="com.alibaba.dubbo.demo.DemoService" url="dubbo://localhost:20880"/>
 		
+		只订阅：
+			|-- 问题描述：当公用一个注册中心时，正在开发的服务若注册到该注册中心，则会影响consumer的消费，产生负载均衡
+			|-- 解决方案：只订阅服务，禁用注册服务功能   register=false / address="...2181?register=false"
+		
+		只注册：
+			|-- 需求：一个provider需要同时注册到两个register，且该provider仅能消费其中一个register服务
+			|-- 方案：禁用订阅功能  subscribe=false
 
+		静态服务：
+			|-- 通过人工的方式管理服务的上线和下线，此时需要将注册中心标识为非动态管理模式
+			|-- dynamic=false 该模式下，monitor中的服务不会随着服务的关闭消失，一直存在于服务列表，除非你手动删除，而动态的服务会自动消失
+				但是服务关闭的情况下，消费者无法连接到服务的
+		多协议：
+			|-- 不同服务适应于不同的协议，大数据适合短连接协议，小数据大并发用长连接协议
+		
+		多register :使用id 区分
+		
+		服务分组：
+			|-- 当一个服务有多个实现时，可以采用分组的方法
+			|-- 发布服务时 group='service1',group="service2",ref引用不同的实现类，然后消费者在消费的时候也必须带上group分组的id 
+		
+		多版本：
+			|-- 当服务升级的时候，可能存在不兼容的情况，通过添加服务的版本号，在调用的时候可以加以区别
 
+		分组聚合：
+			|-- 当接口一样，但是实现类有多个，比如菜单，用group加以区分，需要将每个分组的结果进行合并，
+				这样就能实现分组的聚合效果，将所有菜单的分组聚合到一个结果中
+			|-- reference group="*/a,b,c" merger=true  还有一些方法的合并策略
+		
+		结果缓存：
+			|-- 用于加速热门数据的访问速度 lru 基于最近最少使用原则删除多余缓存，保持最热的数据被缓存
+			|-- reference cache="lru"
 
+		回声测试：
+			|-- 用于检测服务是否可用，可用于监控。所有服务自动实现EchoService接口，直接强转调用$echo("ok")方法测试结果
+
+		上下文信息：
+			|-- 保存的是当前调用过程中所需的环境信息
+			|-- RpcContext.getContext(); 
+				|-- isProviderSide：是否为Provider
+				|-- getRemoteHost:获取调用方地址
+				|-- getUrl().getParameter("application"):获取当前服务的配置信息
+
+		异步调用：
+			|-- 基于NIO的异步非阻塞原理，相对于多线程开销较小
+			|-- 设置方法级别的异步策略：async="true"，若不关心返回值，可以设置return="false",减少future创建和管理的成本
+				异步使用方法：
+					|-- 1.先和往常一样使用服务调用方法，此时返回值为null
+					|-- 2.使用上下文获取future，获取完毕后，之前调用的方法结果会被异步放回future
+						然后使用future的get阻塞方法获取结果。
