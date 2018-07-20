@@ -179,3 +179,52 @@
 					|-- 1.先和往常一样使用服务调用方法，此时返回值为null
 					|-- 2.使用上下文获取future，获取完毕后，之前调用的方法结果会被异步放回future
 						然后使用future的get阻塞方法获取结果。
+		
+		参数回调：
+			|-- 在服务端provider运行consumer的实现，即提供者可以运行消费者的代码。服务端可以调用客户端逻辑
+				服务端只提供接口，消费者提供实现，消费者调用服务者，达到使用提供者运行消费者实现的目的
+			<dubbo:service  interface="com.alibaba.dubbo.demo.DemoService" ref="demoService" connections="1" callbacks="1000">
+				<dubbo:method name="addListener">//设置方法是否可以回调 并设置回调的接口 被provider调用的接口 consumer实现的接口
+					<dubbo:argument callback="true" type="com.alibaba.dubbo.demo.CallbackListener"/>
+				</dubbo:method>
+			</dubbo:service>
+		
+		延迟暴露：
+			|-- 如果服务需要等待点时间才能完全就位，或者应当在服务完全初始化之后再被消费，应该延迟暴露
+			|-- service deplay="500"  
+			|-- <dubbo:provider deplay="-1"/> 可以设置spring初始化加载完毕后再暴露服务 
+
+		并发控制：
+			|-- 限制服务和消费调用服务的并发数量
+			|-- 服务端：<dubbo:service exeutes="10"> 
+			|-- 客户端：<dubbo:reference actives="10"> 或者 在服务端限制客户端的并发数量：<dubbo:service actives="10"> 
+
+		连接控制：限制服务器端的连接数量 <dubbo:provider accepts="10"/>
+		延迟连接: 当有调用发起时，再创建长连接 只对长连接的dubbo协议生效  <dubbo:protocol lazy="true"/>
+		粘滞连接：自动开启延迟连接。尽可能让客户端总是调用同一提供者的服务，除非该provider挂了再连接另一台   <dubbo:protocol sticky="true"/>
+		
+		令牌验证：
+			|-- 1.防止消费者绕过注册中心直接访问提供者 2.在注册中心控制调用权限 3.注册中心可以灵活改变授权方式
+			|-- 经过测试，设置token验证时，如果consumer经过register，可以正常访问，如果是直连方式，只有设置和服务端一样的token值时，
+				客户端才能正常访问provider。也就是说，令牌验证可防止consumer直连。
+		
+		路由规则：
+			|-- 可通过ExtensionLoader扩展加载器使用工厂模式获取Registry注册类，写入对应配置，对指定服务进行设置路由规则
+			|-- 支持 条件路由和脚本路由
+		配置规则
+			|-- 可以向注册中心动态的覆盖原先的服务配置
+			|-- 和路由规则相似，规则不同而已，路由的开头是：condition/script，配置规则是：override
+		服务降级“
+			|-- 可以使消费者对指定服务不发起远程调用，直接返回null值 mock=force:return+null
+			|-- 也可以在消费方对指定服务的方法调用失败后，返回null而不抛异常 mock=fail:return+null
+			|-- 实例：override://0.0.0.0/com.foo.BarService?category=configurators&dynamic=false&application=foo&mock=force:return+null
+			
+		9.基于spring schema的支持，可以设计xml文件 初始化bean
+			|-- 1 设计Javabean
+			|-- 2 设计xsd文件
+			|-- 3 继承NamespaceHandlerSupport 和 BeandefinitionParser 实现xml的解析
+			|-- 4 编写spring.handlers -指明解析的命名空间处理器 和spring.schemas -指明依据的xsd文件 配置文件
+		
+		
+
+	  
