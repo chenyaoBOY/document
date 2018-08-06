@@ -214,7 +214,7 @@
 		配置规则
 			|-- 可以向注册中心动态的覆盖原先的服务配置
 			|-- 和路由规则相似，规则不同而已，路由的开头是：condition/script，配置规则是：override
-		服务降级“
+		服务降级
 			|-- 可以使消费者对指定服务不发起远程调用，直接返回null值 mock=force:return+null
 			|-- 也可以在消费方对指定服务的方法调用失败后，返回null而不抛异常 mock=fail:return+null
 			|-- 实例：override://0.0.0.0/com.foo.BarService?category=configurators&dynamic=false&application=foo&mock=force:return+null
@@ -224,6 +224,27 @@
 			|-- 2 设计xsd文件
 			|-- 3 继承NamespaceHandlerSupport 和 BeandefinitionParser 实现xml的解析
 			|-- 4 编写spring.handlers -指明解析的命名空间处理器 和spring.schemas -指明依据的xsd文件 配置文件
+		
+		10.泛型 通配符
+			|-- 泛型作用：参数化类型，即类的类型作为一种参数，T,K,V,E等字母都可以代表任意的bean类型，以增强扩展性并提高代码的可读性
+			|-- 通配符：制定泛型中的类型范围，<? extend/super T>，指定 上下限，但是局限性是：删减了具体元素的添加删除功能，只提供和元素无关的操作
+			|-- 泛型擦除：若没有指定泛型的上下限，泛型擦除之后都是Object类型，编译之后没有泛型的存在。编译阶段泛型的局限性可以通过反射动态修改泛型的类型
+			|-- Java不能创建具体类型的泛型数组，因为泛型擦除后基本都是Object类型，不能判断数组中的类型具体是什么类型
+
+
+
+
+面试总结：
+	1.简历写啥问啥
+	2.多线程必问
+		|-- 线程池怎么使用，用过没，怎么用的
+		|-- 线程池满了如何处理
+		|-- 搞明白ThreadPoolExcutor的几个参数就差不多了
+	3.缓存
+		|-- redis 数据类型 有什么区别特点 你用过哪些
+		|-- 项目缓存了哪些数据  缓存数据需要更新的时候怎么操作 
+		|-- 缓存击穿是什么 如何避免
+	4.
 		
 		
 
