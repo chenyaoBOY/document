@@ -246,6 +246,167 @@
 		|-- 缓存击穿是什么 如何避免
 	4.
 		
-		
 
-	  
+
+linux 常用命令
+
+	netstat -lnp|grep 8080  查看进程
+	
+	|-- grep 筛选命令
+		|-- grep 'INFO' demo.log     #在文件demo.log中查找所有包行INFO的行
+		|-- grep -c 'ERROR' demo.log   #输出文件demo.log中查找所有包行ERROR的行的数量
+		|-- grep -v 'ERROR' demo.log   #查找不含"ERROR"的行
+		|-- grep -o 'order-fix.curr_id:\([0-9]\+\)' demo.log    #-o选项只提取order-fix.curr_id:xxx的内容（而不是一整行），并输出到屏幕上
+	
+	|-- sed 命令
+
+		可以使用一下命令查使用内存最多的10个进程     
+		ps -aux | sort -k4nr | head -n 10
+		可以使用一下命令查使用CPU最多的10个进程     
+		ps -aux | sort -k3nr | head -n 10
+
+		查看Linux自启服务
+			systemctl list-unit-files --type=service | grep enabled
+
+		
+Docker
+	启动docker
+		|--sudo systemctl start docker
+	docker客户端使用
+		|--docker pull training/webapp 载入某镜像
+		|--docker run -d -p 8080:5000 training/webapp python app.py 指定映射端口执行容器 8080:主机器端口 5000:容器端口
+	删除所有退出的容器
+	    |--docker rm $(docker ps -q -f status=exited)
+		|-- docker ps -q -f status=exited 查询所有状态是exited的容器的id
+
+	   docker run -d --name master -p 3306:3306 -e MYSQL_ROOT_PASSWORD=mysql 
+		   -v /usr/local/src/mysql/master-data:/var/lib/mysql 
+		   -v /usr/local/src/mysql/mater.cnf:/etc/mysql/mysql.conf.d/mysql.cnf 
+		   mysql:5.6
+
+
+
+
+Shiro
+	
+	三大概念：Subject  SecurityManager Realm 
+		|-- Subject :当前用户
+		|-- SecurityManager ：管理所有用户 核心
+		|-- Realm ：连接DB 获取认证和授权信息 ，包含两个概念：Authentication，Authorization
+			|-- Authentication : 认证  用于验证登陆账号和密码是否匹配
+			|-- Authorization : 授权 验证该用户是否拥有某个操作的权限
+
+
+				1.ShiroFilterFactoryBean：设置过滤规则 要set  SecurityManager
+				2.SecurityManager要set 自定义Realm  使用默认的 DefaultWebSecurityManager
+				3.自定义Realm 实现AuthorizingRealm 并实现认证和授权方法即可
+				4.DelegatingFilterProxy 用于过滤url
+
+
+RocketMq
+	 cd /usr/local/src/rocketmq-all-4.3.0/distribution/target/apache-rocketmq/
+	1.启动nameserver
+			nohup sh bin/mqnamesrv & tail -f ~/logs/rocketmqlogs/namesrv.log
+	2.启动broker
+			nohup sh bin/mqbroker -n localhost:9876 & tail -f ~/logs/rocketmqlogs/broker.log 
+	3.启动控制台(jar包启动)
+			nohup java -jar rocketmq-console-ng-1.0.0.jar &
+
+	简单使用教程：
+		生产者：DefaultMqProducer
+			1.设置group名称 2.设置nameserver地址 3.开启链接 4.构造消息体Message body是二进制 5.发送消息 6.关闭链接
+		消费者：DefaultPushMqConsumer|DefaultPullMqConsumer
+			1.设置group名称 2.设置nameserver地址 3.设置消费策略 4.设置消费主题规则 5.监听消息内容 6.建立连接
+
+	概念：
+		1.集群消费：一个consumer group中的所有consumer实例 平均分摊消费消息   MessageModel.CLUSTERING
+		2.广播消费：
+		3.producer group 一类prouder的集合 比如一个producer叫 PG 分布式情况下会部署到n台机器，那么就相当于有n个producer 就可以看成一个组
+			同样的 consumer group 需要采用集群模式消费消息 保证分布式的consumer平均消费消息 负载均衡
+
+	消息中间件 能解决什么问题：
+		1.最基本的消息的发布和订阅
+		2.MessagePriority
+			|-- rocketmq的所有消息都是持久化的，如果支持优先级则开销会很大，没有特意支持消息的优先级功能
+			|-- 可以通过变通的形式 使用不同的Topic作为不用的优先级
+		3.MessageOrder
+			消息有序指能按照消息的发送顺序消费，rocketmq支持严格的有序消费
+		4.MessageFilter
+			|-- broker过滤 按照consumer的规则过滤消息  减少了consumer端的网络传输 增加了broker的负担 实现发杂
+				rocketmq支持 通过Message [tag header body] 的过滤规则
+			|-- consumer过滤 有应用程序自定义过滤规则 缺点是网络开销大 无用的消息都会传输到consumer端
+		5.MessagePersistence
+			消息持久化的方式：1.数据库 2.KV存储系统 3.文件记录形式 4.对内存数据缓存数据做一个持久化镜像
+			rocketMq 第三种方式 利用Linux的文件系统内存cache来提供性能
+		6.MessageReliability  (消息都由broker存储)
+			1.broker正常关闭 2.broker异常crash 3.OS crash 4.断电 可恢复电源 5.无法开机 6.磁盘损坏
+			1234 属于硬件资源可立即恢复情况 rocketmq可以保证不丢失消息 或者根据刷盘方式的不同 损失少量消息
+			56 属于单点故障无法立即恢复 该单点的数据全部丢失 
+				|-- 通过异步复制可保证99%的消息不丢失
+				|-- 通过同步双写模式可以避免单点故障，但是会影响性能，适合对可靠性要求非常高的业务 比如money的业务
+		7.Message Low Latency
+			消息不堆积的情况下，消息到达broker后，立即送达consumer
+			rocketmq使用Pull长轮询的方式，可以保证消息非常实时，实时性不低于push
+		8.At Least One
+			每个消息必须投递一次
+			rocketmq消费完成后才发送Ack 没有消费就不会发送Ack确认消费的消息
+		9.Exactyl Only Once --不支持
+			1.不允许发送重复消息
+			2.不允许消费重复消息
+			rocketmq不支持，所以消费方要做到幂等性。正常情况下不会发生消息重复的情况，网络异常或者consumer启动异常可能会出现。
+		10.Broker Buffer满了怎么办？
+			Buffer通常指一个队列中的Buffer大小，通常大小都是有限的，满了怎么办呢？
+			通常其他MQ解决方案都是使用抛弃策略，rocketmq没有这个概念，队列无限长。
+			不过无限长是有前提的，rocketmq会定时清理过期数据。
+		11.回溯消费
+			consumer已经消费成功的消息，业务上可能要求重新消费。
+			broker要提供一种机制，可以按照时间维度回退消费进度。
+			rocketmq支持回溯消费，向前向后均可，毫秒级别
+		12.消息堆积
+			消息中间件的主要功能是异步解耦。为了保证后端系统的稳定性，在接收前端海量的消息后需要有一定的堆积能力。
+				|-- buffer堆积 buffer满了如何处理？丢弃策略 取决于内存的大小
+				|-- 持久化堆积 DB｜KV系统｜文件记录　当消息不能在缓存中命中时，势必会读取磁盘IO，读IO的吞吐量决定了消息堆积后的访问能力
+				
+				考虑点：
+					１.消息堆积容量　２.消息堆积后,producer 和 consumer是否会受到影响　３.消息堆积后　访问磁盘堆积的消息时　吞吐量多大
+		13.分布式事务
+			分布式事务规范：XA　JTA　
+					XA：数据库的两阶段提交
+			rockemq支持分布式事务
+
+		14.定时消息
+			消息发送到broker之后，消息不被立即消费，等到特定的时间点再去消费
+			rocketmq支持定时消息 但是不支持任意精度，支持特定的level 比如5s 10s 1m
+		15.消息重试
+			consumer消费失败后，需要提供一种机制，再消费一次，以使消息最终被消费掉。
+			1.消息本身原因：
+				比如序列化失败，消息本身不能被处理(例如充话费 手机号已注销)
+				这种消息要跳过，消费下一条消息，即便立即重试，也会99%不成功。可以定时重试，10s 20s
+			2.由于应用依赖的下游不可用 
+				例如DB连接失败 网络不可达等原因
+				这种消息即使执行下一条消息 依然会失败。这种情况建议休眠30s 再次重试消费
+
+	RocketMq 是什么？
+		1.是一个【队列模型】的消息中间件，具有 高可用、高性能、高实时、分布式的特点
+		2.producer consumer queue 都可以实现分布式
+		3.producer像 topic中的队列轮流发送消息 consumer如果做广播消费，则一个consumer实例消费所有的队列消息 如果做集群消费 平均消费
+		4.保证严格的消息顺序
+		5.拉取模式丰富
+		6.亿级消息堆积能力
+		7.实时的订阅机制
+		8.高效的订阅者水平扩展能力
+		9.依赖少
+	
+
+	
+	rocketMq 多Master安装
+		1.修改/etc/hosts 文件 添加 ip对域名的映射 ip nameserver ip master
+		2.修改broker-*.properties 文件 添加配置属性
+		3.broker nameserver jvm调优
+		4.启动顺序：先NameServer 后Broker
+
+
+
+
+
+
